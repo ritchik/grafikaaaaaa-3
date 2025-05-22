@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Realistic Lighting - TypeScript + Three.js</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+    <div style="margin-bottom: 10px;">
+        <label for="intensity">Intensywność światła: </label>
+        <input type="range" id="intensity" min="0" max="3" step="0.1" value="2">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="angleX">Pozycja X: </label>
+        <input type="range" id="angleX" min="0" max="360" step="1" value="45">
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label for="angleY">Pozycja Y: </label>
+        <input type="range" id="angleY" min="-90" max="90" step="1" value="45">
+      </div>
+      <div>
+        <label for="lightColor">Kolor światła: </label>
+        <select id="lightColor">
+          <option value="default">Białe (domyślne)</option>
+          <option value="yellow">Żółte (zachód słońca)</option>
+          <option value="pink">Różowe</option>
+          <option value="orange">Pomarańczowe</option>
+          <option value="blue">Niebieskie</option>
+        </select>
+      </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
