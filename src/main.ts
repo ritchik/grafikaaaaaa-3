@@ -1,26 +1,64 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { SimplexNoise } from 'three/examples/jsm/math/SimplexNoise.js';
+
+// ============= WŁASNA IMPLEMENTACJA ŚWIATŁA =============
+
+class CustomLight {
+  position: THREE.Vector3;
+  color: THREE.Color;
+  intensity: number;
+  
+  constructor(color: number = 0xffffff, intensity: number = 1) {
+    this.position = new THREE.Vector3(0, 0, 0);
+    this.color = new THREE.Color(color);
+    this.intensity = intensity;
+  }
+  
+  // Oblicz oświetlenie w danym punkcie
+  calculateLighting(
+    worldPosition: THREE.Vector3, 
+    normal: THREE.Vector3, 
+    viewDirection: THREE.Vector3,
+    material: any
+  ): { diffuse: number; specular: number; attenuation: number } {
+    
+    const lightDirection = this.position.clone().sub(worldPosition).normalize();
+    const distance = this.position.distanceTo(worldPosition);
+    
+    const attenuation = 1.0 / (1.0 + 0.1 * distance + 0.01 * distance * distance);
+    
+    const diffuseStrength = Math.max(0, normal.dot(lightDirection));
+    const diffuse = diffuseStrength * this.intensity * attenuation;
+    
+    const reflectDirection = lightDirection.clone().negate().reflect(normal);
+    const specularStrength = Math.pow(Math.max(0, viewDirection.dot(reflectDirection)), 32);
+    const specular = specularStrength * this.intensity * attenuation;
+    
+    return { diffuse, specular, attenuation };
+  }
+}
  
 
+ 
+// ============= SCENA THREE.JS (ZACHOWANA) =============
 
 // Scena
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0.5, 0.7, 1.0); // kolor nieba
+scene.background = new THREE.Color(0.5, 0.7, 1.0);
 
 // Kamera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 5);
 
-// Renderer z zaawansowanymi ustawieniami
+// Renderer z zachowanymi ustawieniami
 const renderer = new THREE.WebGLRenderer({ 
   antialias: true,
   powerPreference: "high-performance"
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false;  // USUNIĘTE - nie używamy shadow mapping
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -33,14 +71,7 @@ controls.dampingFactor = 0.05;
 controls.minDistance = 2;
 controls.maxDistance = 20;
 
-// Animacja rotacji obiektów
-  
-  controls.update();
-  renderer.render(scene, camera);
- ;
-
-
-// Podłoże
+// Podłoże z zachowanymi cieniami
 const groundGeometry = new THREE.PlaneGeometry(100, 100);
 const groundMaterial = new THREE.MeshStandardMaterial({ 
   color: 0x777777,
@@ -49,67 +80,92 @@ const groundMaterial = new THREE.MeshStandardMaterial({
 });
 const ground = new THREE.Mesh(groundGeometry, groundMaterial);
 ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
+ground.receiveShadow = false;  // USUNIĘTE - bez shadow mapping
 scene.add(ground);
 
-// Słońce - Directional Light
-const sun = new THREE.DirectionalLight(0xffffff, 3);
-sun.position.set(3, 5, 2);
-sun.castShadow = true;
-sun.shadow.mapSize.width = 2048;
-sun.shadow.mapSize.height = 2048;
-sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = 50;
-sun.shadow.camera.left = -10;
-sun.shadow.camera.right = 10;
-sun.shadow.camera.top = 10;
-sun.shadow.camera.bottom = -10;
-scene.add(sun);
+// USUNIĘTE - Three.js DirectionalLight dla cieni - zastąpione własnym światłem
 
-// Ambient Light dla lepszego wypełnienia cieni
-const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-scene.add(ambientLight);
+//   Ambient Light
+//const ambientLight = new THREE.AmbientLight(0x404040, 1.0);
+//scene.add(ambientLight);
 
-// Hemisphere Light dla lepszego oświetlenia z góry/dołu
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x404040, 0.3);
-scene.add(hemisphereLight);
+//   Hemisphere Light
+//const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+//scene.add(hemisphereLight);
 
-// Mała kula reprezentująca Słońce
-const sunSphereGeometry = new THREE.SphereGeometry(1, 64, 64);
+ 
+
+// WŁASNE ŚWIATŁO  
+const customLight = new CustomLight(0xffffff, 2.0);
+customLight.position.set(5, 8, 5);
+
+// Mała kula reprezentująca nasze własne słońce
+const sunSphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
 const sunSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 const sunSphere = new THREE.Mesh(sunSphereGeometry, sunSphereMaterial);
 scene.add(sunSphere);
 
-// Aktualizacja pozycji światła i słońca
-function updateSunPosition(angleX: number, angleY: number) {
-  const radX = THREE.MathUtils.degToRad(angleX);
-  const radY = THREE.MathUtils.degToRad(angleY);
-
-  const x = Math.cos(radX) * Math.cos(radY);
-  const y = Math.sin(radY);
-  const z = Math.sin(radX) * Math.cos(radY);
-
-  sun.position.set(x * 10, y * 10, z * 10);
-  sunSphere.position.copy(sun.position);
-}
-
-// UI - kontrolki
+// UI kontrolki (zachowane)
 const angleXInput = document.getElementById('angleX') as HTMLInputElement;
 const angleYInput = document.getElementById('angleY') as HTMLInputElement;
+const angleZInput = document.getElementById('angleZ') as HTMLInputElement;
+const lightDistanceInput = document.getElementById('lightDistance') as HTMLInputElement;
 
-angleXInput?.addEventListener('input', () => {
-  updateSunPosition(parseFloat(angleXInput.value), parseFloat(angleYInput.value));
-});
+//   Zmienne dla environment reflections
+let cubeRenderTarget: THREE.WebGLCubeRenderTarget;
+let cubeCamera: THREE.CubeCamera;
+let envScene: THREE.Scene;
+let lightSphere: THREE.Mesh;
+let materialsToUpdate: THREE.Material[] = [];
+let customMaterials: THREE.ShaderMaterial[] = [];
 
-angleYInput?.addEventListener('input', () => {
-  updateSunPosition(parseFloat(angleXInput.value), parseFloat(angleYInput.value));
-});
+//   Environment reflections
+function initEnvironmentReflections() {
+  cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512, {
+    format: THREE.RGBFormat,
+    generateMipmaps: true,
+    minFilter: THREE.LinearMipmapLinearFilter
+  });
+  cubeCamera = new THREE.CubeCamera(0.1, 1000, cubeRenderTarget);
+  
+  envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0.5, 0.7, 1.0);
+  
+  lightSphere = new THREE.Mesh(
+    new THREE.SphereGeometry(3, 32, 32),
+    new THREE.MeshBasicMaterial({ 
+      color: 0xffff00,
+      transparent: false,
+      opacity: 1.0
+    })
+  );
+  envScene.add(lightSphere);
+  
+  const envGround = new THREE.Mesh(
+    new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshBasicMaterial({ color: 0x555555 })
+  );
+  envGround.rotation.x = -Math.PI / 2;
+  envScene.add(envGround);
+}
 
-// -----------------------------------------
-// REALISTYCZNE MATERIAŁY
-// -----------------------------------------
+//  Update environment reflections
+function updateEnvironmentReflections() {
+  if (!cubeCamera || !envScene || !lightSphere) return;
+  
+  lightSphere.position.copy(customLight.position);
+  cubeCamera.position.set(0, 1, 0);
+  cubeCamera.update(renderer, envScene);
+  
+  materialsToUpdate.forEach(material => {
+    if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+      material.envMap = cubeRenderTarget.texture;
+      material.needsUpdate = true;
+    }
+  });
+}
 
-// Funkcja ładująca HDR dla IBL (Image Based Lighting)
+//   HDR loading
 async function loadHDR() {
   const rgbeLoader = new RGBELoader();
   const hdrTexture = await rgbeLoader.loadAsync('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr');
@@ -117,57 +173,114 @@ async function loadHDR() {
   scene.environment = hdrTexture;
   return hdrTexture;
 }
+
+function updateLightPositionFromControls() {
+  const angleX = parseFloat(angleXInput?.value || '30');
+  const angleY = parseFloat(angleYInput?.value || '45');
+  const angleZ = parseFloat(angleZInput?.value || '0');
+  const distance = parseFloat(lightDistanceInput?.value || '8');
+  updateSunPosition(angleX, angleY, angleZ, distance);
+}
+
+angleXInput?.addEventListener('input', updateLightPositionFromControls);
+angleYInput?.addEventListener('input', updateLightPositionFromControls);
+angleZInput?.addEventListener('input', updateLightPositionFromControls);
+lightDistanceInput?.addEventListener('input', updateLightPositionFromControls);
+
+//  logika rotacji + aktualizacja cieni
+function updateSunPosition(angleX: number, angleY: number, angleZ: number, distance: number) {
+  const radX = THREE.MathUtils.degToRad(angleX);
+  const radY = THREE.MathUtils.degToRad(angleY);
+  const radZ = THREE.MathUtils.degToRad(angleZ);
+
+  let position = new THREE.Vector3(0, 0, distance);
+  
+  if (angleX !== 0) {
+    const rotationX = new THREE.Matrix4().makeRotationX(radX);
+    position.applyMatrix4(rotationX);
+  }
+  
+  if (angleY !== 0) {
+    const rotationY = new THREE.Matrix4().makeRotationY(radY);
+    position.applyMatrix4(rotationY);
+  }
+  
+  if (angleZ !== 0) {
+    const rotationZ = new THREE.Matrix4().makeRotationZ(radZ);
+    position.applyMatrix4(rotationZ);
+  }
+  
+ // if (position.y < 1) {
+ //   position.y = Math.abs(position.y) + 1;
+ // }
+
+  // Aktualizuj tylko własne światło
+  customLight.position.copy(position);
+  sunSphere.position.copy(position);
+  
  
+  // Aktualizuj własne materiały
+  customMaterials.forEach(material => {
+    material.uniforms.customLightPosition.value.copy(customLight.position);
+  });
   
+  //   Environment reflections
+  updateEnvironmentReflections();
+  
+  console.log('Angles (deg) - X:', angleX, 'Y:', angleY, 'Z:', angleZ);
+  console.log('Sun position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2));
+}
 
-// Tworzymy wszystkie materiały
+ 
+// Tworzenie materiałów - hybrydowe (własne + Three.js)
 async function createMaterials() {
-  const hdrTexture = await loadHDR();
+  const hdrTexture = await loadHDR();  // ✅ ZACHOWANE
   
-  // Matte Material - Dull, non-reflective surface
+  // Materiały Three.js dla standardowych obiektów (zachowują environment mapping)
   const matteMaterial = new THREE.MeshStandardMaterial({
-    color: 0x808080,          // Medium gray
-    roughness: 1.0,           // Maximum roughness for matte look
-    metalness: 0.0,           // Non-metallic
-    envMapIntensity: 0.0      // No environment reflections
+    color: 0x98fb98, 
+    roughness: 1.0,
+    metalness: 0.0,
+    envMapIntensity: 0.3,
+    envMap: cubeRenderTarget.texture
   });
 
-  // Gold Material
-  const goldMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xFFD700,           // Pure gold color
-    metalness: 1.0,            // Fully metallic
-    roughness: 0.1,            // Very smooth for high reflection
-    reflectivity: 1.0,         // Maximum reflectivity
-    envMapIntensity: 2.0,      // Strong environment reflections
-    clearcoat: 0.3,            // Slight clearcoat for extra shine
-    clearcoatRoughness: 0.2    // Slightly rough clearcoat
-  });
+  const goldMaterial = new THREE.MeshStandardMaterial({
+    color: 0xC0C0C0,
+    metalness: 1,
+    roughness: 0.1,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 0.6
+});
 
-  // Glass Material
   const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,          // Clear glass
-    metalness: 0.0,           // Non-metallic
-    roughness: 0.05,          // Very slight roughness for realism
-    transmission: 0.95,       // High transmission for transparency
-    transparent: true,        // Enable transparency
-    opacity: 0.6,             // Slight opacity
-    reflectivity: 0.9,        // High reflectivity
-    ior: 1.5,                 // Index of refraction for glass
-    envMapIntensity: 1.5,     // Strong environment reflections
-    clearcoat: 1.0,           // Add clearcoat for more realistic reflections
-    clearcoatRoughness: 0.1,  // Slight roughness on the clearcoat
-    thickness: 0.5            // Material thickness for refraction
+    color: 0xffffff,
+    metalness: 0.0,
+    roughness: 0.05,
+    transmission: 0.95,
+    transparent: true,
+    opacity: 0.6,
+    reflectivity: 0.9,
+    ior: 1.5,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 2.0,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+    thickness: 0.5
   });
 
-  // Plastic Material
   const plasticMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x003366,          // Dark blue color
-    metalness: 0.0,            // Non-metallic
-    roughness: 0.5,            // Semi-glossy
-    clearcoat: 0.5,            // Moderate clearcoat
-    clearcoatRoughness: 0.4,   // Slightly rough clearcoat
-    envMapIntensity: 0.8       // Moderate environment reflections
+    color: 0x003366,
+    metalness: 0.0,
+    roughness: 0.5,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.4,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 1.5
   });
+
+  //   materials to update
+  materialsToUpdate = [goldMaterial, glassMaterial, plasticMaterial,matteMaterial];
 
   return {
     matte: matteMaterial,
@@ -177,12 +290,10 @@ async function createMaterials() {
   };
 }
 
-// Tworzenie obiektów z materiałami 
+// Tworzenie obiektów (zachowane)
 async function createObjects() {
-  // Uzyskaj materiały
   const materials = await createMaterials();
   
-  // Rozmieszczenie obiektów w okręgu
   const radius = 3;
   const angleStep = (Math.PI * 2) / 4;
   
@@ -196,37 +307,35 @@ async function createObjects() {
     ));
   }
   
-  // Geometria kuli - używamy tej samej dla wszystkich materiałów
   const sphereGeometry = new THREE.SphereGeometry(0.7, 64, 64);
   
-  // Tworzenie obiektów
   const matteSphere = new THREE.Mesh(sphereGeometry, materials.matte);
   matteSphere.position.copy(positions[0]);
-  matteSphere.castShadow = true;
-  matteSphere.receiveShadow = true;
+  matteSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
+  matteSphere.receiveShadow = false;
   scene.add(matteSphere);
   
   const goldSphere = new THREE.Mesh(sphereGeometry, materials.gold);
   goldSphere.position.copy(positions[1]);
-  goldSphere.castShadow = true;
-  goldSphere.receiveShadow = true;
+  goldSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
+  goldSphere.receiveShadow = false;
   scene.add(goldSphere);
   
   const glassSphere = new THREE.Mesh(sphereGeometry, materials.glass);
   glassSphere.position.copy(positions[2]);
-  glassSphere.castShadow = true;
-  glassSphere.receiveShadow = true;
+  glassSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
+  glassSphere.receiveShadow = false;
   scene.add(glassSphere);
 
   const plasticSphere = new THREE.Mesh(sphereGeometry, materials.plastic);
   plasticSphere.position.copy(positions[3]);
-  plasticSphere.castShadow = true;
-  plasticSphere.receiveShadow = true;
+  plasticSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
+  plasticSphere.receiveShadow = false;
   scene.add(plasticSphere);
   
-  // Dodaj etykiety
+  //   Labels
   createLabel("Matte", positions[0]);
-  createLabel("Gold", positions[1]);
+  createLabel("Silver", positions[1]);
   createLabel("Glass", positions[2]);
   createLabel("Plastic", positions[3]);
   
@@ -238,7 +347,7 @@ async function createObjects() {
   };
 }
 
-// Funkcja do tworzenia etykiet nad obiektami
+//  Labels
 function createLabel(text: string, position: THREE.Vector3) {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -263,34 +372,21 @@ function createLabel(text: string, position: THREE.Vector3) {
   }
 }
 
-// Funkcja dodająca kontrolki HTML do strony
-function addControlsToPage() {
-  // Tworzymy div dla kontrolek
-  const controlsDiv = document.createElement('div');
-  controlsDiv.style.position = 'absolute';
-  controlsDiv.style.top = '10px';
-  controlsDiv.style.left = '10px';
-  controlsDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-  controlsDiv.style.padding = '10px';
-  controlsDiv.style.borderRadius = '5px';
-  
-   
-  
-  document.body.appendChild(controlsDiv);
-}
-
-// Inicjalizacja sceny i obiektów
+ 
 async function init() {
-  // Dodanie kontrolek HTML
-  addControlsToPage();
+  initEnvironmentReflections();  
   
-  // Inicjalne ustawienie światła
-  updateSunPosition(45, 45);
+  const initialAngleX = parseFloat(angleXInput?.value || '30');
+  const initialAngleY = parseFloat(angleYInput?.value || '45');
+  const initialAngleZ = parseFloat(angleZInput?.value || '0');
+  const initialDistance = parseFloat(lightDistanceInput?.value || '8');
+  updateSunPosition(initialAngleX, initialAngleY, initialAngleZ, initialDistance);
   
-  // Tworzenie obiektów z materiałami
   const objects = await createObjects();
   
-  // Animacja obiektów - delikatne obracanie się
+  updateEnvironmentReflections();   
+  
+  
   function animateObjects() {
     objects.matteSphere.rotation.y += 0.01;
     objects.goldSphere.rotation.y += 0.01;
@@ -298,34 +394,28 @@ async function init() {
     objects.plasticSphere.rotation.y += 0.01;
   }
   
-  // Animacja
   function animate() {
     requestAnimationFrame(animate);
     
-    // Aktualizacja kontroli orbitowania
     controls.update();
-    
-    // Animacja obiektów
     animateObjects();
     
-    // Render
     renderer.render(scene, camera);
   }
   
   animate();
 }
 
-// Uruchom inicjalizację
 init();
 
-// Obsługa zmiany rozmiaru okna
+ 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Dodanie stylów CSS do strony
+ 
 const style = document.createElement('style');
 style.textContent = `
   body {
