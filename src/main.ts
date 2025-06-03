@@ -9,7 +9,7 @@ class CustomLight {
   color: THREE.Color;
   intensity: number;
   
-  constructor(color: number = 0xffffff, intensity: number = 1) {
+  constructor(color: number = 0x000000, intensity: number = 1) {
     this.position = new THREE.Vector3(0, 0, 0);
     this.color = new THREE.Color(color);
     this.intensity = intensity;
@@ -45,11 +45,11 @@ class CustomLight {
 
 // Scena
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
-
+scene.background = new THREE.Color(0.5, 0.7, 1.0);
+//tu
 // Kamera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 2, 5);
+camera.position.set(0, 2, 5); // X=0, Y=2, Z=5
 
 // Renderer z zachowanymi ustawieniami
 const renderer = new THREE.WebGLRenderer({ 
@@ -71,16 +71,7 @@ controls.dampingFactor = 0.05;
 controls.minDistance = 2;
 controls.maxDistance = 20;
 
-// Remove ground code
-// const groundGeometry = new THREE.PlaneGeometry(100, 100);
-// const groundMaterial = new THREE.MeshPhongMaterial({ 
-//   color: 0x777777,
-//   shininess: 5
-// });
-// const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-// ground.rotation.x = -Math.PI / 2;
-// ground.receiveShadow = false;
-// scene.add(ground);
+ 
 
 // USUNIĘTE - Three.js DirectionalLight dla cieni - zastąpione własnym światłem
 
@@ -93,21 +84,13 @@ controls.maxDistance = 20;
 //scene.add(hemisphereLight);
 
  
-
+//tu1
 // WŁASNE ŚWIATŁO  
 const customLight = new CustomLight(0xffffff, 2.0);
-customLight.position.set(5, 8, 5);
-
-// Add Three.js lights
-const pointLight = new THREE.PointLight(0xffffff, 2.0, 100);
-pointLight.position.copy(customLight.position);
-scene.add(pointLight);
-
-const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
-scene.add(ambientLight);
+customLight.position.set(5, 8, 5); // X=5, Y=8, Z=5
 
 // Mała kula reprezentująca nasze własne słońce
-const sunSphereGeometry = new THREE.SphereGeometry(0.05, 32, 32);
+const sunSphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
 const sunSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 const sunSphere = new THREE.Mesh(sunSphereGeometry, sunSphereMaterial);
 scene.add(sunSphere);
@@ -148,18 +131,13 @@ function initEnvironmentReflections() {
   );
   envScene.add(lightSphere);
   
-  const envGround = new THREE.Mesh(
-    new THREE.PlaneGeometry(200, 200),
-    new THREE.MeshBasicMaterial({ color: 0x555555 })
-  );
-  envGround.rotation.x = -Math.PI / 2;
-  envScene.add(envGround);
+   
 }
 
 //  Update environment reflections
 function updateEnvironmentReflections() {
   if (!cubeCamera || !envScene || !lightSphere) return;
-  
+  //tu2
   lightSphere.position.copy(customLight.position);
   cubeCamera.position.set(0, 1, 0);
   cubeCamera.update(renderer, envScene);
@@ -224,13 +202,8 @@ function updateSunPosition(angleX: number, angleY: number, angleZ: number, dista
   // Aktualizuj tylko własne światło
   customLight.position.copy(position);
   sunSphere.position.copy(position);
-  pointLight.position.copy(position);
   
-  // Adjust light intensity based on distance
-  const baseIntensity = 8.0;
-  const distanceFactor = Math.max(1, distance / 5); // Increase intensity as distance increases
-  pointLight.intensity = baseIntensity * distanceFactor;
-  
+ 
   // Aktualizuj własne materiały
   customMaterials.forEach(material => {
     material.uniforms.customLightPosition.value.copy(customLight.position);
@@ -246,29 +219,49 @@ function updateSunPosition(angleX: number, angleY: number, angleZ: number, dista
  
 // Tworzenie materiałów - hybrydowe (własne + Three.js)
 async function createMaterials() {
-  //const hdrTexture = await loadHDR();  // 
+  const hdrTexture = await loadHDR();  //  
   
   // Materiały Three.js dla standardowych obiektów (zachowują environment mapping)
-  const matteMaterial = new THREE.MeshPhongMaterial({
-    color: 0x003366, 
-    shininess: 5
+  const matteMaterial = new THREE.MeshStandardMaterial({
+    color: 0x98fb98, 
+    roughness: 1.0,
+    metalness: 0.0,
+    envMapIntensity: 0.3,
+    envMap: cubeRenderTarget.texture
   });
 
-  const goldMaterial = new THREE.MeshPhongMaterial({
-    color: 0xFFD700,
-    shininess: 90
-  });
+  const goldMaterial = new THREE.MeshStandardMaterial({
+    color: 0xC0C0C0,
+    metalness: 0.6,
+    roughness: 0.1,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 1.2
+});
 
-  const glassMaterial = new THREE.MeshPhongMaterial({
+  const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    shininess: 100,
+    metalness: 0.0,
+    roughness: 0.05,
+    transmission: 0.95,
     transparent: true,
-    opacity: 0.3
+    opacity: 0.6,
+    reflectivity: 0.9,
+    ior: 1.5,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 2.0,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+    thickness: 0.5
   });
 
-  const plasticMaterial = new THREE.MeshPhongMaterial({
+  const plasticMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x003366,
-    shininess: 80
+    metalness: 0.0,
+    roughness: 0.5,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.4,
+    envMap: cubeRenderTarget.texture,
+    envMapIntensity: 1.5
   });
 
   //   materials to update
@@ -287,7 +280,7 @@ async function createObjects() {
   const materials = await createMaterials();
   
   const radius = 3;
-  const angleStep = (Math.PI * 2) / 2;
+  const angleStep = (Math.PI * 2) / 4;
   
   const positions = [];
   for (let i = 0; i < 4; i++) {
@@ -311,13 +304,13 @@ async function createObjects() {
   goldSphere.position.copy(positions[1]);
   goldSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
   goldSphere.receiveShadow = false;
-  //scene.add(goldSphere);
+  scene.add(goldSphere);
   
   const glassSphere = new THREE.Mesh(sphereGeometry, materials.glass);
   glassSphere.position.copy(positions[2]);
   glassSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
   glassSphere.receiveShadow = false;
-  //scene.add(glassSphere);
+  scene.add(glassSphere);
 
   const plasticSphere = new THREE.Mesh(sphereGeometry, materials.plastic);
   plasticSphere.position.copy(positions[3]);
@@ -327,8 +320,8 @@ async function createObjects() {
   
   //   Labels
   createLabel("Matte", positions[0]);
-  //createLabel("Silver", positions[1]);
-  //createLabel("Glass", positions[2]);
+  createLabel("Silver", positions[1]);
+  createLabel("Glass", positions[2]);
   createLabel("Plastic", positions[3]);
   
   return {
