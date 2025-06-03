@@ -9,7 +9,7 @@ class CustomLight {
   color: THREE.Color;
   intensity: number;
   
-  constructor(color: number = 0x000000, intensity: number = 1) {
+  constructor(color: number = 0x000000, intensity: number = 20) {
     this.position = new THREE.Vector3(0, 0, 0);
     this.color = new THREE.Color(color);
     this.intensity = intensity;
@@ -45,8 +45,12 @@ class CustomLight {
 
 // Scena
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0.5, 0.7, 1.0);
+scene.background = new THREE.Color(0.5, 0.7, 1.0);  //0.5, 0.7, 1.0
 //tu
+// Dodaj pomocnik osi
+//const axesHelper = new THREE.AxesHelper(100); // Rozmiar osi
+//scene.add(axesHelper);
+
 // Kamera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 5); // X=0, Y=2, Z=5
@@ -86,12 +90,12 @@ controls.maxDistance = 20;
  
 //tu1
 // WŁASNE ŚWIATŁO  
-const customLight = new CustomLight(0xffffff, 2.0);
+const customLight = new CustomLight(0xFFFFFF, 50.0);
 customLight.position.set(5, 8, 5); // X=5, Y=8, Z=5
 
 // Mała kula reprezentująca nasze własne słońce
-const sunSphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-const sunSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+const sunSphereGeometry = new THREE.SphereGeometry(0.2, 32, 32);
+const sunSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 const sunSphere = new THREE.Mesh(sunSphereGeometry, sunSphereMaterial);
 scene.add(sunSphere);
 
@@ -124,7 +128,7 @@ function initEnvironmentReflections() {
   lightSphere = new THREE.Mesh(
     new THREE.SphereGeometry(3, 32, 32),
     new THREE.MeshBasicMaterial({ 
-      color: 0xffff00,
+      color: 0xFFFFFF,
       transparent: false,
       opacity: 1.0
     })
@@ -224,9 +228,9 @@ async function createMaterials() {
   // Materiały Three.js dla standardowych obiektów (zachowują environment mapping)
   const matteMaterial = new THREE.MeshStandardMaterial({
     color: 0x98fb98, 
-    roughness: 1.0,
+    roughness: 0.2,
     metalness: 0.0,
-    envMapIntensity: 0.3,
+    envMapIntensity: 0.1,
     envMap: cubeRenderTarget.texture
   });
 
@@ -256,12 +260,13 @@ async function createMaterials() {
 
   const plasticMaterial = new THREE.MeshPhysicalMaterial({
     color: 0x003366,
-    metalness: 0.0,
-    roughness: 0.5,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.4,
+    metalness: 0.,        // Plastik nie jest metaliczny
+    roughness: 0.3,        // Zwiększona szorstkość dla bardziej rozmytej podstawy
+    reflectivity: 0.1,     // Umiarkowana refleksyjność
+    clearcoat: 0.0,        // Lekko zwiększony clearcoat, aby punkt był widoczny
+    clearcoatRoughness: 0.000, // BARDZO niska szorstkość w clearcoat dla ostrego punktu
     envMap: cubeRenderTarget.texture,
-    envMapIntensity: 1.5
+    envMapIntensity: 0.7   // Zwiększona intensywność envMap, aby punkt był jaśniejszy
   });
 
   //   materials to update
@@ -280,7 +285,7 @@ async function createObjects() {
   const materials = await createMaterials();
   
   const radius = 3;
-  const angleStep = (Math.PI * 2) / 4;
+  const angleStep = (Math.PI * 2) / 2;
   
   const positions = [];
   for (let i = 0; i < 4; i++) {
@@ -292,7 +297,7 @@ async function createObjects() {
     ));
   }
   
-  const sphereGeometry = new THREE.SphereGeometry(0.7, 64, 64);
+  const sphereGeometry = new THREE.SphereGeometry(0.8, 64, 64);
   
   const matteSphere = new THREE.Mesh(sphereGeometry, materials.matte);
   matteSphere.position.copy(positions[0]);
@@ -304,13 +309,13 @@ async function createObjects() {
   goldSphere.position.copy(positions[1]);
   goldSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
   goldSphere.receiveShadow = false;
-  scene.add(goldSphere);
+  //scene.add(goldSphere);
   
   const glassSphere = new THREE.Mesh(sphereGeometry, materials.glass);
   glassSphere.position.copy(positions[2]);
   glassSphere.castShadow = false;  // USUNIĘTE - bez shadow mapping
   glassSphere.receiveShadow = false;
-  scene.add(glassSphere);
+  //scene.add(glassSphere);
 
   const plasticSphere = new THREE.Mesh(sphereGeometry, materials.plastic);
   plasticSphere.position.copy(positions[3]);
@@ -320,8 +325,8 @@ async function createObjects() {
   
   //   Labels
   createLabel("Matte", positions[0]);
-  createLabel("Silver", positions[1]);
-  createLabel("Glass", positions[2]);
+  //createLabel("Silver", positions[1]);
+ // createLabel("Glass", positions[2]);
   createLabel("Plastic", positions[3]);
   
   return {
